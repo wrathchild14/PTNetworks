@@ -11,7 +11,7 @@ Works and I have results.
 ### Results
 
 - 160 epochs, lr=0.0001
-  ![](C:\Git\Masters\nrg\PathTracer\PTNetworks\results\encdec_arch\160epochs.png)
+  ![](results\encdec_arch\160epochs.png)
 
 ## Diffusion model architecture
 
