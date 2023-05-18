@@ -12,7 +12,7 @@ from models import DenoiserEncDec, DenoiserDiffusion
 from datasets import DenoiserDataset
 
 
-def train(selected_device, network, num_epochs, load_prev=False):
+def train(selected_device, network, num_epochs, learning_rate=0.0001, load_prev=False):
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
@@ -23,7 +23,7 @@ def train(selected_device, network, num_epochs, load_prev=False):
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
     criterion = torch.nn.MSELoss()
-    optimizer = optim.Adam(network.parameters(), lr=0.0001)
+    optimizer = optim.Adam(network.parameters(), lr=learning_rate)
 
     # load prev network
     if load_prev:
@@ -68,19 +68,12 @@ def test(selected_device, network, load_prev=False):
 
     denoised_image_np = denoised_image.squeeze(0).cpu().detach().numpy()
 
-    # # Rescale the values from [-1, 1] to [0, 255]
+    # from [-1, 1] to [0, 255]
     denoised_image_np = ((denoised_image_np + 1) * 0.5 * 255).astype(np.uint8)
-    #
-    # # Create a PIL Image from the numpy array
     # denoised_image_pil = Image.fromarray(denoised_image_np.transpose(1, 2, 0))
-    #
-    # # Save the image
     # denoised_image_pil.save("denoised_image.jpg")
-    #
-    # denoised_image_np = (denoised_image_np + 1) * 0.5
     import matplotlib.pyplot as plt
 
-    # Visualize the image
     plt.imshow(denoised_image_np.transpose(1, 2, 0))
     plt.axis('off')
     plt.show()
@@ -97,6 +90,6 @@ if __name__ == "__main__":
     # model = DenoiserDiffusion(in_channels, out_channels).to(device)
     model = DenoiserEncDec(in_channels, out_channels).to(device)
 
-    train(device, model, 100, True)
+    train(device, model, 100)
     # saves the image locally
     test(device, model)
