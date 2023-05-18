@@ -16,7 +16,8 @@ if __name__ == "__main__":
         # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
         transforms.ToTensor(),
         # transforms.Resize((256, 256)),
-        # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        # transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
+        transforms.Normalize(mean=(0.5/255, 0.5/255, 0.5/255), std=(0.5/255, 0.5/255, 0.5/255))
     ])
     clean_dir = "./data/clean"
     noisy_dir = "./data/noisy"
@@ -30,6 +31,7 @@ if __name__ == "__main__":
     criterion = torch.nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
+    # load prev network
     model.load_state_dict(torch.load("trained_diffusion_model.pth"))
 
     num_epochs = 100
