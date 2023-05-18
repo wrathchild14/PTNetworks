@@ -1,16 +1,20 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision.datasets import ImageFolder
-from torchvision.transforms import ToTensor
+from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from denoiser import DenoisingDiffusionNetwork
+from denoiser_dataset import DenoiserDataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-dataset = ImageFolder("./data", transform=ToTensor())
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+clean_dir = "./data/clean"
+noisy_dir = "./data/noisy"
+dataset = DenoiserDataset(clean_dir, noisy_dir, transform=transform)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+
 
 in_channels = 3
 out_channels = 3
