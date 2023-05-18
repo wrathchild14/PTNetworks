@@ -2,16 +2,14 @@
 
 Deep learning de-noising networks using different architectures implemented in pytorch.
 
-Inteded to be used with a custom-made path tracer to make it converge faster to the rendered image of a scene.
+Intended to be used with a custom-made path tracer to make it converge faster to the rendered image of a scene.
 
 ## Encoder decoder architecture
 
-Works and I have results.
-
 ### Results
 
-- 160 epochs, lr=0.0001
-![](results/encdec_arch/160epochs.png)
+- 30 epochs, lr=0.0001. Problems: low res
+![](results/encdec_arch/result1.png)
 
 ## Diffusion model architecture
 

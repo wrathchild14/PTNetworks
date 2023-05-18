@@ -29,9 +29,9 @@ class ResNetBlock(nn.Module):
         return out
 
 
-class DenoiserEncDec(nn.Module):
+class DenoiserAutoEncoder(nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(DenoiserEncDec, self).__init__()
+        super(DenoiserAutoEncoder, self).__init__()
 
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1),
