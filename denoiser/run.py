@@ -1,3 +1,4 @@
+import numpy as np
 import torch.optim as optim
 import torch.nn.functional
 
@@ -14,12 +15,7 @@ from datasets import DenoiserDataset
 def train(selected_device, network, num_epochs, load_prev=False):
     transform = transforms.Compose([
         transforms.ToTensor(),
-        # transforms.Resize((256, 256)),
-        # transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
-        # transforms.RandomHorizontalFlip(),
-        # transforms.RandomVerticalFlip(),
-        # transforms.RandomRotation(30),
-        # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
     ])
     clean_dir = "./data/clean"
     noisy_dir = "./data/noisy"
@@ -31,7 +27,7 @@ def train(selected_device, network, num_epochs, load_prev=False):
 
     # load prev network
     if load_prev:
-        model.load_state_dict(torch.load("trained_diffusion_model.pth"))
+        network.load_state_dict(torch.load("trained_diffusion_model.pth"))
 
     for epoch in range(num_epochs):
         for batch, (noisy_images, clean_images) in enumerate(dataloader):
@@ -43,9 +39,6 @@ def train(selected_device, network, num_epochs, load_prev=False):
             optimizer.zero_grad()
 
             mse = mse_loss(denoised_images, clean_images)
-            # ssim_loss = 1 - ssim(denoised_images, clean_images, data_range=1, size_average=True)
-            # total_loss = 0.5 * mse + 0.5 * ssim_loss
-            # total_loss.backward()
             mse.backward()
 
             optimizer.step()
@@ -60,18 +53,39 @@ def test(selected_device, network, load_prev=False):
     network.eval()
 
     test_image = Image.open("blurry.jpg")
+
     transform = transforms.Compose([
         transforms.ToTensor(),
-        # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
     ])
-    test_image = transform(test_image).unsqueeze(0).to(selected_device)
+    test_image_transformed = transform(test_image)
 
-    print(test_image.shape)
-    print(torch.min(test_image), torch.max(test_image))
+    test_image_tensor = test_image_transformed.unsqueeze(0).to(selected_device)
 
-    denoised_image = network(test_image)
-    # denoised_image = denoised_image.clamp(0.0, 1.0)  # Clamp values to [0, 1]
-    save_image(denoised_image, "denoised_image.jpg")
+    denoised_image = network(test_image_tensor)
+
+    print("Denoised image shape:", denoised_image.shape)
+
+    denoised_image_np = denoised_image.squeeze(0).cpu().detach().numpy()
+
+    # # Rescale the values from [-1, 1] to [0, 255]
+    denoised_image_np = ((denoised_image_np + 1) * 0.5 * 255).astype(np.uint8)
+    #
+    # # Create a PIL Image from the numpy array
+    # denoised_image_pil = Image.fromarray(denoised_image_np.transpose(1, 2, 0))
+    #
+    # # Save the image
+    # denoised_image_pil.save("denoised_image.jpg")
+    #
+    # denoised_image_np = (denoised_image_np + 1) * 0.5
+    import matplotlib.pyplot as plt
+
+    # Visualize the image
+    plt.imshow(denoised_image_np.transpose(1, 2, 0))
+    plt.axis('off')
+    plt.show()
+
+    # save_image(denoised_image, "denoised_image.jpg")
 
 
 if __name__ == "__main__":
@@ -83,6 +97,6 @@ if __name__ == "__main__":
     # model = DenoiserDiffusion(in_channels, out_channels).to(device)
     model = DenoiserEncDec(in_channels, out_channels).to(device)
 
-    train(device, model, 5)
+    train(device, model, 100, True)
     # saves the image locally
     test(device, model)
