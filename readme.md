@@ -9,11 +9,14 @@ Intended to be used with a custom-made path tracer to make it converge faster to
 ### Results
 
 - 30 epochs, lr=0.0001. Problems: low res
-![](results/encdec_arch/result1.png)
+  ![](results/encdec_arch/result1.png)
 
 ## Diffusion model architecture
 
-Skip connections with ResNet blocks
+Whats different? Diffusion steps with ResNet blocks
+
+In comparison
+![](results/diffusion/comparison.png)
 
 - 15 epochs, lr=0.0001
-![](results/diffusion/result1.png)
+  ![](results/diffusion/result1.png)
