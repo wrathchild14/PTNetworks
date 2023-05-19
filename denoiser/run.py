@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from datasets import DenoiserDataset
 from denoiser.utils import SimdLoss
-from models import UNet
+from models import UNet, EncDec
 
 
 def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=False):
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     in_channels = 3
     out_channels = 3
 
-    # model = DenoiserAutoEncoder(in_channels, out_channels).to(device)
+    # model = EncDec(in_channels, out_channels).to(device)
     model = UNet(in_channels, out_channels).to(device)
 
     train(device, model, num_epochs=9, load_prev=True)
