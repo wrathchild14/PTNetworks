@@ -78,6 +78,7 @@ class DecodeUp(nn.Module):
         x = self.conv(x)
         return x
 
+
 class ResNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(ResNetBlock, self).__init__()
