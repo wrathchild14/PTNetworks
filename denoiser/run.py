@@ -27,6 +27,9 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
     criterion = SimdLoss()
     optimizer = optim.Adam(network.parameters(), lr=learning_rate)
 
+    # scheduler for reducing the lr
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
+
     # Load previous network weights if specified
     if load_prev:
         network.load_state_dict(torch.load("trained_diffusion_model.pth"))
@@ -44,6 +47,8 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)  # Gradient clipping
             optimizer.step()
+
+            scheduler.step(loss)
 
             print(f"Epoch [{epoch + 1}/{num_epochs}], Batch [{batch + 1}/{len(dataloader)}], Loss: {loss.item()}")
 
@@ -91,5 +96,5 @@ if __name__ == "__main__":
     # model = DenoiserAutoEncoder(in_channels, out_channels).to(device)
     model = DenoiserDiffusion(in_channels, out_channels).to(device)
 
-    train(device, model, num_epochs=10, load_prev=True)
+    train(device, model, num_epochs=25, load_prev=True)
     test(device, model, load_prev=False)
