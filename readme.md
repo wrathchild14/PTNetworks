@@ -13,4 +13,7 @@ Intended to be used with a custom-made path tracer to make it converge faster to
 
 ## Diffusion model architecture
 
-Skip connections
+Skip connections with ResNet blocks
+
+- 15 epochs, lr=0.0001
+![](results/diffusion/result1.png)

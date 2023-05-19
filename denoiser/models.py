@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-from torchvision.models import resnet18
 
 
 class ResNetBlock(nn.Module):
@@ -95,12 +93,7 @@ class DenoiserDiffusion(nn.Module):
         )
 
         self.diffusion_steps = nn.ModuleList([
-            nn.Sequential(
-                nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-                nn.ReLU(inplace=True)
-            ) for _ in range(num_steps)
+            ResNetBlock(256, 256) for _ in range(self.num_steps)
         ])
 
         self.decoder = nn.Sequential(

@@ -8,10 +8,11 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from datasets import DenoiserDataset
-from models import DenoiserAutoEncoder
+from denoiser.utils import SimdLoss
+from models import DenoiserAutoEncoder, DenoiserDiffusion
 
 
-def train(selected_device, network, num_epochs, learning_rate=0.0001, load_prev=False):
+def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=False):
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
@@ -22,7 +23,8 @@ def train(selected_device, network, num_epochs, learning_rate=0.0001, load_prev=
     dataset = DenoiserDataset(clean_dir, noisy_dir, transform=transform)
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-    criterion = torch.nn.MSELoss()
+    # criterion = torch.nn.MSELoss()
+    criterion = SimdLoss()
     optimizer = optim.Adam(network.parameters(), lr=learning_rate)
 
     # Load previous network weights if specified
@@ -40,6 +42,7 @@ def train(selected_device, network, num_epochs, learning_rate=0.0001, load_prev=
 
             optimizer.zero_grad()
             loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)  # Gradient clipping
             optimizer.step()
 
             print(f"Epoch [{epoch + 1}/{num_epochs}], Batch [{batch + 1}/{len(dataloader)}], Loss: {loss.item()}")
@@ -85,7 +88,8 @@ if __name__ == "__main__":
     in_channels = 3
     out_channels = 3
 
-    model = DenoiserAutoEncoder(in_channels, out_channels).to(device)
+    # model = DenoiserAutoEncoder(in_channels, out_channels).to(device)
+    model = DenoiserDiffusion(in_channels, out_channels).to(device)
 
-    # train(device, model, num_epochs=30, load_prev=True)
-    test(device, model, load_prev=True)
+    train(device, model, num_epochs=10, load_prev=True)
+    test(device, model, load_prev=False)
