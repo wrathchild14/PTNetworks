@@ -11,12 +11,13 @@ from datasets import DenoiserDataset
 from denoiser.utils import SimdLoss
 from models import UNet, EncDec
 
+import pytorch_ssim
+
 
 def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=False):
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-        # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     ])
     clean_dir = "./data/clean"
     noisy_dir = "./data/noisy"
@@ -26,6 +27,8 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
     # criterion = torch.nn.MSELoss()
     # criterion = SimdLoss()
     criterion = torch.nn.L1Loss()
+    # criterion = pytorch_ssim.SSIM()
+
     optimizer = optim.Adam(network.parameters(), lr=learning_rate)
 
     # scheduler for reducing the lr
@@ -41,8 +44,8 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
             noisy_images = noisy_images.to(selected_device)
             clean_images = clean_images.to(selected_device)
 
-            denoised_images = network(noisy_images)
-            loss = criterion(denoised_images, clean_images)
+            de_noised_images = network(noisy_images)
+            loss = criterion(de_noised_images, clean_images)
 
             optimizer.zero_grad()
             loss.backward()
@@ -54,7 +57,7 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
             print(f"Epoch [{epoch + 1}/{num_epochs}], Batch [{batch + 1}/{len(dataloader)}], Loss: {loss.item()}")
 
     torch.save(network.state_dict(), "trained_model.pth")
-    "saved model"
+    print("saved model")
 
 
 def test(selected_device, network, load_prev=False, image_path="pt_blurry.jpg"):
@@ -73,14 +76,14 @@ def test(selected_device, network, load_prev=False, image_path="pt_blurry.jpg"):
     test_image_tensor = test_image_transformed.unsqueeze(0).to(selected_device)
 
     # revert back to rgb
-    denoised_image = network(test_image_tensor)
-    print("Denoised image shape:", denoised_image.shape)
-    denoised_image_np = denoised_image.squeeze(0).cpu().detach().numpy()
+    de_noised_image = network(test_image_tensor)
+    print("Denoised image shape:", de_noised_image.shape)
+    de_noised_image_np = de_noised_image.squeeze(0).cpu().detach().numpy()
     # From [-1, 1] to [0, 255]
-    denoised_image_np = ((denoised_image_np + 1) * 0.5 * 255).astype(np.uint8)
+    de_noised_image_np = ((de_noised_image_np + 1) * 0.5 * 255).astype(np.uint8)
 
     import matplotlib.pyplot as plt
-    plt.imshow(denoised_image_np.transpose(1, 2, 0))
+    plt.imshow(de_noised_image_np.transpose(1, 2, 0))
     plt.axis('off')
     plt.show()
 
@@ -94,5 +97,5 @@ if __name__ == "__main__":
     # model = EncDec(in_channels, out_channels).to(device)
     model = UNet(in_channels, out_channels).to(device)
 
-    train(device, model, num_epochs=9, load_prev=True)
-    test(device, model, load_prev=False)
+    # train(device, model, num_epochs=5)
+    test(device, model, load_prev=True, image_path="testing_image.jpg")
