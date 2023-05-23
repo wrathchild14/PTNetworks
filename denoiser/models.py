@@ -116,6 +116,38 @@ class ResNetBlock(nn.Module):
         return out
 
 
+class UNetOld(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(UNetOld, self).__init__()
+
+        self.down1 = EncodeDown(in_channels, 64)
+        self.down2 = EncodeDown(64, 128)
+        self.down3 = EncodeDown(128, 256)
+        self.down4 = EncodeDown(256, 512)
+
+        self.double_conv = DoubleConv(512, 1024)
+
+        self.up1 = DecodeUp(1024, 512)
+        self.up2 = DecodeUp(512, 256)
+        self.up3 = DecodeUp(256, 128)
+        self.up4 = DecodeUp(128, 64)
+
+        self.output = nn.Conv2d(64, out_channels, kernel_size=1, padding=0)
+
+    def forward(self, x):
+        s1, p1 = self.down1(x)
+        s2, p2 = self.down2(p1)
+        s3, p3 = self.down3(p2)
+        s4, p4 = self.down4(p3)
+        b = self.double_conv(p4)
+        d1 = self.up1(b, s4)
+        d2 = self.up2(d1, s3)
+        d3 = self.up3(d2, s2)
+        d4 = self.up4(d3, s1)
+        output = self.output(d4)
+        return output
+
+
 class EncDec(nn.Module):
     def __init__(self, in_channels, out_channels, num_steps=10):
         super(EncDec, self).__init__()
