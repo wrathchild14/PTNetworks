@@ -1,4 +1,5 @@
 import numpy as np
+import pytorch_ssim as pytorch_ssim
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -28,13 +29,13 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
     # criterion = SimdLoss()
     criterion = torch.nn.L1Loss()
     # criterion = pytorch_ssim.SSIM()
+    # criterion = pytorch_msssim.SSIM();
 
     optimizer = optim.Adam(network.parameters(), lr=learning_rate)
 
     # scheduler for reducing the lr
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
 
-    # Load previous network weights if specified
     if load_prev:
         network.load_state_dict(torch.load("trained_model.pth"))
         print("loaded previous trained model")
@@ -97,5 +98,5 @@ if __name__ == "__main__":
     # model = EncDec(in_channels, out_channels).to(device)
     model = UNet(in_channels, out_channels).to(device)
 
-    # train(device, model, num_epochs=5)
-    test(device, model, load_prev=True, image_path="testing_image.jpg")
+    train(device, model, load_prev=False, num_epochs=3)
+    test(device, model, load_prev=False, image_path="test_image.jpg")
