@@ -88,5 +88,5 @@ if __name__ == "__main__":
 
     model = UNet(in_channels, out_channels).to(device)
 
-    train(device, model, load_prev=False, num_epochs=3)
+    train(device, model, load_prev=False, num_epochs=2)
     test(device, model, load_prev=False, image_path="test_image.jpg")
