@@ -1,4 +1,5 @@
 from torch import nn, cat
+from torch.nn.functional import pad
 
 
 class UNet(nn.Module):
@@ -9,13 +10,15 @@ class UNet(nn.Module):
         self.down2 = EncodeDown(64, 128)
         self.down3 = EncodeDown(128, 256)
         self.down4 = EncodeDown(256, 512)
+        self.down5 = EncodeDown(512, 1024)
 
-        self.double_conv = DoubleConv(512, 1024)
+        self.double_conv = DoubleConv(1024, 2048)
 
-        self.up1 = DecodeUp(1024, 512)
-        self.up2 = DecodeUp(512, 256)
-        self.up3 = DecodeUp(256, 128)
-        self.up4 = DecodeUp(128, 64)
+        self.up1 = DecodeUp(2048, 1024)
+        self.up2 = DecodeUp(1024, 512)
+        self.up3 = DecodeUp(512, 256)
+        self.up4 = DecodeUp(256, 128)
+        self.up5 = DecodeUp(128, 64)
 
         self.output = nn.Conv2d(64, out_channels, kernel_size=1, padding=0)
 
@@ -24,12 +27,14 @@ class UNet(nn.Module):
         s2, p2 = self.down2(p1)
         s3, p3 = self.down3(p2)
         s4, p4 = self.down4(p3)
-        b = self.double_conv(p4)
-        d1 = self.up1(b, s4)
-        d2 = self.up2(d1, s3)
-        d3 = self.up3(d2, s2)
-        d4 = self.up4(d3, s1)
-        output = self.output(d4)
+        s5, p5 = self.down5(p4)
+        b = self.double_conv(p5)
+        d1 = self.up1(b, s5)
+        d2 = self.up2(d1, s4)
+        d3 = self.up3(d2, s3)
+        d4 = self.up4(d3, s2)
+        d5 = self.up5(d4, s1)
+        output = self.output(d5)
         return output
 
 
@@ -74,7 +79,13 @@ class DecodeUp(nn.Module):
 
     def forward(self, x, skip):
         x = self.up(x)
-        x = cat([x, skip], axis=1)
+
+        # pad between skip tensors
+        diff_h = skip.size()[2] - x.size()[2]
+        diff_w = skip.size()[3] - x.size()[3]
+        x = pad(x, (diff_w // 2, diff_w - diff_w // 2, diff_h // 2, diff_h - diff_h // 2))
+
+        x = cat([x, skip], dim=1)
         x = self.conv(x)
         return x
 
