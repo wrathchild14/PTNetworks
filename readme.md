@@ -15,7 +15,7 @@ Loss functions tried:
 - MSE
 - SSIM
 - SIMD
-- L1
+- **L1** - had best results
 
 ### Results
 

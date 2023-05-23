@@ -1,18 +1,13 @@
 import numpy as np
-import pytorch_ssim as pytorch_ssim
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from PIL import Image
-from torch.nn.functional import mse_loss
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from datasets import DenoiserDataset
-from denoiser.utils import SimdLoss
-from models import UNet, EncDec
-
-import pytorch_ssim
+from models import UNet
 
 
 def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=False):
@@ -25,11 +20,7 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
     dataset = DenoiserDataset(clean_dir, noisy_dir, transform=transform)
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
 
-    # criterion = torch.nn.MSELoss()
-    # criterion = SimdLoss()
     criterion = torch.nn.L1Loss()
-    # criterion = pytorch_ssim.SSIM()
-    # criterion = pytorch_msssim.SSIM();
 
     optimizer = optim.Adam(network.parameters(), lr=learning_rate)
 
@@ -78,7 +69,7 @@ def test(selected_device, network, load_prev=False, image_path="pt_blurry.jpg"):
 
     # revert back to rgb
     de_noised_image = network(test_image_tensor)
-    print("Denoised image shape:", de_noised_image.shape)
+    print("De-noised image shape:", de_noised_image.shape)
     de_noised_image_np = de_noised_image.squeeze(0).cpu().detach().numpy()
     # From [-1, 1] to [0, 255]
     de_noised_image_np = ((de_noised_image_np + 1) * 0.5 * 255).astype(np.uint8)
@@ -95,7 +86,6 @@ if __name__ == "__main__":
     in_channels = 3
     out_channels = 3
 
-    # model = EncDec(in_channels, out_channels).to(device)
     model = UNet(in_channels, out_channels).to(device)
 
     train(device, model, load_prev=False, num_epochs=3)
