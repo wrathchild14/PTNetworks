@@ -6,17 +6,6 @@ Intended to be used with a custom-made path tracer to make it converge faster to
 
 ## U-net
 
-It's a 5 layer deep U-Net architecture with skip connections, so it can get the full details of the rendered images
-
-Architecture:
-<img height="200" src="results/unet_architecture.png" width="400"/>
-
-Loss functions tried:
-- MSE
-- SSIM
-- SIMD
-- **L1** - had best results
-
 ### Results
 
 Trains really quickly. **Note**: will re-train on a more noisy data. 
