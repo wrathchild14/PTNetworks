@@ -1,4 +1,5 @@
-from torch import nn, cat
+import torch
+from torch import nn, cat, randn_like, sqrt
 from torch.nn.functional import pad
 
 
@@ -36,6 +37,15 @@ class UNet(nn.Module):
         d5 = self.up5(d4, s1)
         output = self.output(d5)
         return output
+    
+    def diffusion(self, x, original_x, num_steps=1000, step_size=0.00001):
+        step_size = torch.tensor(step_size).to(x.device)
+        for _ in range(num_steps):
+            noise = randn_like(x) * sqrt(step_size)
+            grad = original_x - x
+            # x = x.clone() + 0.5 * grad * step_size + noise
+            x.add_(0.5 * grad * step_size + noise)
+        return x
 
 
 class EncodeDown(nn.Module):
