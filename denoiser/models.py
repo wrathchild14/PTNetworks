@@ -38,7 +38,7 @@ class UNet(nn.Module):
         output = self.output(d5)
         return output
     
-    def diffusion(self, x, original_x, num_steps=1000, step_size=0.00001):
+    def diffusion(self, x, original_x, num_steps=1000, step_size=1e-8):
         step_size = torch.tensor(step_size).to(x.device)
         for _ in range(num_steps):
             noise = randn_like(x) * sqrt(step_size)

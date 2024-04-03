@@ -24,14 +24,15 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     criterion = torch.nn.L1Loss()
+    # criterion = torch.nn.MSELoss()
 
-    optimizer = optim.Adam(network.parameters(), lr=learning_rate)
+    optimizer = optim.AdamW(network.parameters(), lr=learning_rate)
 
     # scheduler for reducing the lr
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
 
     if load_prev:
-        network.load_state_dict(torch.load("trained_model.pth"))
+        network.load_state_dict(torch.load("trained_model_trained_diffusion_mse_adamw.pth"))
         print("loaded previous trained model")
 
     for epoch in range(num_epochs):
@@ -42,9 +43,12 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
             noisy_images = noisy_images.to(selected_device)
             clean_images = clean_images.to(selected_device)
 
-            # diffused_images = network.diffusion(noisy_images, clean_images, num_steps=1000, step_size=learning_rate)
+            if epoch > num_epochs / 2:
+                de_noised_images = network(noisy_images)
+            else:
+                diffused_images = network.diffusion(noisy_images, clean_images)
+                de_noised_images = network(diffused_images)
 
-            de_noised_images = network(noisy_images)
             loss = criterion(de_noised_images, clean_images)
 
             optimizer.zero_grad()
@@ -105,7 +109,7 @@ def test(selected_device, network, load_prev=False, image_path="pt_blurry.jpg"):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    EPOCHS = 2
+    EPOCHS = 10
     BATCH_SIZE = 8
     
     in_channels = 3
@@ -114,5 +118,5 @@ if __name__ == "__main__":
     model = UNet(in_channels, out_channels).to(device)
 
     # train_diffusion(selected_device=device, network=model, load_prev=False, num_epochs=EPOCHS, batch_size=BATCH_SIZE)
-    # train(device, model, load_prev=False, num_epochs=EPOCHS, batch_size=BATCH_SIZE)
-    test(device, model, load_prev=True, image_path="test_image_overfitted.jpg")
+    # train(device, model, load_prev=True, num_epochs=EPOCHS, batch_size=BATCH_SIZE)
+    test(device, model, load_prev=True, image_path="test_image_overfit1.jpg")
