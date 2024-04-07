@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=False, batch_size=64):
     transform = transforms.Compose([
+        # transforms.Resize((200, 200)), # because of the memory error, maybe fine tune later
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
     ])
@@ -23,13 +24,14 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
     dataset = DenoiserDataset(clean_dir, noisy_dir, transform=transform)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    criterion = torch.nn.L1Loss()
+    # criterion = torch.nn.L1Loss()
+    criterion = torch.nn.SmoothL1Loss()
     # criterion = torch.nn.MSELoss()
 
-    optimizer = optim.AdamW(network.parameters(), lr=learning_rate)
+    optimizer = optim.AdamW(network.parameters(), lr=learning_rate) # goated optimizer
 
     # scheduler for reducing the lr
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
 
     if load_prev:
         network.load_state_dict(torch.load("trained_model_trained_diffusion_mse_adamw.pth"))
@@ -40,14 +42,18 @@ def train(selected_device, network, num_epochs, learning_rate=1e-4, load_prev=Fa
         total_loss = 0
         pbar = tqdm(enumerate(dataloader), total=len(dataloader), leave=False)
         for batch, (noisy_images, clean_images) in pbar:
+            # noisy_images = noisy_images.to(selected_device).requires_grad_()
             noisy_images = noisy_images.to(selected_device)
             clean_images = clean_images.to(selected_device)
+            # print(noisy_images.shape, clean_images.shape) 
 
-            if epoch > num_epochs / 2:
-                de_noised_images = network(noisy_images)
-            else:
-                diffused_images = network.diffusion(noisy_images, clean_images)
-                de_noised_images = network(diffused_images)
+            de_noised_images = network(noisy_images)
+            # if epoch > num_epochs / 2:
+            #     # de_noised_images = checkpoint(network, noisy_images)
+            # else:
+            #     diffused_images = network.diffusion(noisy_images, clean_images)
+            #     de_noised_images = network(diffused_images)
+                # de_noised_images = checkpoint(network, diffused_images)
 
             loss = criterion(de_noised_images, clean_images)
 
@@ -74,6 +80,7 @@ def test(selected_device, network, load_prev=False, image_path="pt_blurry.jpg"):
     # transform image
     test_image = Image.open(image_path)
     transform = transforms.Compose([
+        # transforms.Resize((200, 200)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
     ])
@@ -109,7 +116,7 @@ def test(selected_device, network, load_prev=False, image_path="pt_blurry.jpg"):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    EPOCHS = 10
+    EPOCHS = 1
     BATCH_SIZE = 8
     
     in_channels = 3
@@ -117,6 +124,7 @@ if __name__ == "__main__":
 
     model = UNet(in_channels, out_channels).to(device)
 
-    # train_diffusion(selected_device=device, network=model, load_prev=False, num_epochs=EPOCHS, batch_size=BATCH_SIZE)
+    # # train_diffusion(selected_device=device, network=model, load_prev=False, num_epochs=EPOCHS, batch_size=BATCH_SIZE)
     # train(device, model, load_prev=True, num_epochs=EPOCHS, batch_size=BATCH_SIZE)
-    test(device, model, load_prev=True, image_path="test_image_overfit1.jpg")
+    test(device, model, load_prev=True, image_path="test_image_overfitted.jpg")
+
