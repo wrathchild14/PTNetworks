@@ -1,0 +1,10 @@
+- works
+- try new losses, get the diffusion to work better
+
+- fix diffusion process:
+https://arxiv.org/pdf/2010.02502.pdf
+https://nn.labml.ai/diffusion/ddpm/index.html
+
+- implement GANs:
+	- generator tries to generate denoised images
+	- other network tries to guess if its real or fake, based on the clean images
