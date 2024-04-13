@@ -40,11 +40,11 @@ def train(selected_device, network, num_epochs, transform, dataloader, learning_
             t = diffusion.sample_timesteps(noisy_images.shape[0]).to(selected_device)
             noisy_images, _ = diffusion.noise_images(noisy_images, t)
 
-            noisy_image = noisy_images[0].squeeze(0).cpu().detach().numpy()
-            noisy_image = ((noisy_image + 1) * 0.5 * 255).astype(np.uint8)
-            plt.imshow(noisy_image.transpose(1, 2, 0))
-            plt.axis('off')
-            plt.show()
+            # noisy_image = noisy_images[0].squeeze(0).cpu().detach().numpy()
+            # noisy_image = ((noisy_image + 1) * 0.5 * 255).astype(np.uint8)
+            # plt.imshow(noisy_image.transpose(1, 2, 0))
+            # plt.axis('off')
+            # plt.show()
 
             de_noised_images = network(noisy_images)
             # if epoch > num_epochs / 2:
