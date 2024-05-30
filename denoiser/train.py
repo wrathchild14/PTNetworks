@@ -26,7 +26,7 @@ def train(selected_device, network, num_epochs, transform, dataloader, learning_
     diffusion = Diffusion(img_size=transform.transforms[0].size[0], device=selected_device) # get the scale from the transform
 
     if load_prev:
-        network.load_state_dict(torch.load("../trained_model.pth"))
+        network.load_state_dict(torch.load("trained_model.pth"))
         print("Successfully loaded previous model for training")
 
     for epoch in range(num_epochs):
@@ -72,7 +72,7 @@ def train(selected_device, network, num_epochs, transform, dataloader, learning_
 
 def test(selected_device, network, transform, load_prev=False, image_path="pt_blurry.jpg", save_img=False):
     if load_prev:
-        network.load_state_dict(torch.load("../trained_model.pth"))
+        network.load_state_dict(torch.load("denoiser/trained/1/trained_model.pth"))
         print("loaded model for testing")
     network.eval()
 
@@ -102,7 +102,11 @@ def test(selected_device, network, transform, load_prev=False, image_path="pt_bl
         output_image = Image.fromarray(de_noised_image_np.transpose(1, 2, 0))
         image_name = image_path.split(".")[0]
         output_image.save(f"{image_name}_denoised.jpg")
-        
+    
+
+    brightness_factor = 1.5
+    de_noised_image_np = np.clip(de_noised_image_np * brightness_factor, 0, 255).astype(np.uint8)
+
     plt.imshow(de_noised_image_np.transpose(1, 2, 0))
     plt.axis('off')
     plt.show()
