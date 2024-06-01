@@ -13,6 +13,7 @@ Trains really quickly. **Note**: will re-train on a more noisy data.
 |               Before                |               After                |
 |:-----------------------------------:|:----------------------------------:|
 | ![](results/pt_results/before1.jpg) | ![](results/pt_results/after1.jpg) |
+| ![](results/pt_results/noisy.jpg)  | ![](results/pt_results/denoised.png)|
 
 ## Encoder decoder architecture
 
