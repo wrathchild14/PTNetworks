@@ -12,22 +12,26 @@ import matplotlib.pyplot as plt
 
 from datasets import DenoiserDataset
 from models import UNet
-from diffusion import Diffusion
 
+def make_noisy_images(x):
+    epsilon = torch.randn_like(x) * 0.01
+    return x + epsilon
 
 def train(selected_device, network, num_epochs, transform, dataloader, learning_rate=1e-4, load_prev=False, criterion=nn.L1Loss()):
-
-
     optimizer = optim.AdamW(network.parameters(), lr=learning_rate) # goated optimizer
 
     # scheduler for reducing the lr
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
 
-    diffusion = Diffusion(img_size=transform.transforms[0].size[0], device=selected_device) # get the scale from the transform
+    best_val_loss = float('inf')
+    epochs_no_improve = 0
+    early_stopping_patience = 2
 
     if load_prev:
         network.load_state_dict(torch.load("trained_model.pth"))
         print("Successfully loaded previous model for training")
+    train_losses = []
+    val_losses = []
 
     for epoch in range(num_epochs):
         print(f"Epoch: {epoch + 1}/{num_epochs}")
@@ -37,8 +41,7 @@ def train(selected_device, network, num_epochs, transform, dataloader, learning_
             noisy_images = noisy_images.to(selected_device)
             clean_images = clean_images.to(selected_device)
 
-            t = diffusion.sample_timesteps(noisy_images.shape[0]).to(selected_device)
-            noisy_images, _ = diffusion.noise_images(noisy_images, t)
+            noisy_images = make_noisy_images(noisy_images)
 
             # noisy_image = noisy_images[0].squeeze(0).cpu().detach().numpy()
             # noisy_image = ((noisy_image + 1) * 0.5 * 255).astype(np.uint8)
@@ -47,13 +50,6 @@ def train(selected_device, network, num_epochs, transform, dataloader, learning_
             # plt.show()
 
             de_noised_images = network(noisy_images)
-            # if epoch > num_epochs / 2:
-            #     # de_noised_images = checkpoint(network, noisy_images)
-            # else:
-            #     diffused_images = network.diffusion(noisy_images, clean_images)
-            #     de_noised_images = network(diffused_images)
-                # de_noised_images = checkpoint(network, diffused_images)
-
             loss = criterion(de_noised_images, clean_images)
 
             optimizer.zero_grad()
@@ -66,13 +62,47 @@ def train(selected_device, network, num_epochs, transform, dataloader, learning_
             total_loss += loss.item()
             pbar.set_description(f"Loss: {total_loss/(batch+1):.4f}")
 
+        network.eval()
+        with torch.no_grad():
+            val_loss = 0
+            for batch, (noisy_images, clean_images) in enumerate(val_dataloader):
+                noisy_images = noisy_images.to(selected_device)
+                clean_images = clean_images.to(selected_device)
+                de_noised_images = network(noisy_images)
+                loss = criterion(de_noised_images, clean_images)
+                val_loss += loss.item()
+
+        avg_val_loss = val_loss / len(val_dataloader)
+        
+        train_losses.append(total_loss/len(dataloader))
+        avg_val_loss = val_loss / len(val_dataloader)
+        
+        print(f"Loss: {total_loss/len(dataloader):.4f}, Validation Loss: {avg_val_loss:.4f}")
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            epochs_no_improve = 0
+            torch.save(network.state_dict(), "trained_model.pth")
+        else:
+            epochs_no_improve += 1
+            if epochs_no_improve == early_stopping_patience:
+                print(f"Early stopping at epoch {epoch + 1}")
+                break
+
         torch.save(network.state_dict(), "trained_model.pth")
         print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss/len(dataloader):.4f} and checkpoint created")
+    
+    plt.figure(figsize=(10, 5))
+    plt.plot(train_losses, label='Training Loss')
+    plt.plot(val_losses, label='Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
 
 
 def test(selected_device, network, transform, load_prev=False, image_path="pt_blurry.jpg", save_img=False):
     if load_prev:
-        network.load_state_dict(torch.load("denoiser/trained/1/trained_model.pth"))
+        network.load_state_dict(torch.load("trained_model.pth"))
         print("loaded model for testing")
     network.eval()
 
@@ -96,6 +126,7 @@ def test(selected_device, network, transform, load_prev=False, image_path="pt_bl
     de_noised_image_np = de_noised_image.squeeze(0).cpu().detach().numpy()
     # From [-1, 1] to [0, 255]
     de_noised_image_np = ((de_noised_image_np + 1) * 0.5 * 255).astype(np.uint8)
+    # de_noised_image_np = (de_noised_image_np * 255).astype(np.uint8)
 
     # save image
     if save_img:
@@ -121,7 +152,7 @@ if __name__ == "__main__":
     argparaser.add_argument("--learning_rate", type=float, default=1e-4)
     argparaser.add_argument("--load_prev", type=bool, default=False)
     argparaser.add_argument("--test", type=bool, default=False)
-    argparaser.add_argument("--image_path", type=str, default="../test_data/test_image3.jpg")
+    argparaser.add_argument("--image_path", type=str, default="../test_data/test_image2.jpg")
     argparaser.add_argument("--save_img", type=bool, default=False)
     args = argparaser.parse_args()
 
@@ -156,12 +187,17 @@ if __name__ == "__main__":
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ])
 
-    clean_dir = 'data/generated_images/clean'
-    noisy_dir = 'data/generated_images/noisy'
+    clean_dir = 'wsl_data/generated_images/clean'
+    noisy_dir = 'wsl_data/generated_images/noisy'
+    # clean_dir = 'data/generated_images/clean'
+    # noisy_dir = 'data/generated_images/noisy'
+    
     dataset = DenoiserDataset(clean_dir, noisy_dir, transform=transform)
+    val_dataset = DenoiserDataset('val_data/clean', 'val_data/noisy', transform=transform)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     print(f"Init training: {EPOCHS} epochs, {BATCH_SIZE} batch size, {LEARNING_RATE} learning rate, criterion: {criterion}, transform resize: {transform.transforms[0].size}")
 
     train(device, network=model, transform=transform, dataloader=dataloader, load_prev=LOAD_PREV, num_epochs=EPOCHS, learning_rate=LEARNING_RATE, criterion=criterion)
-    test(device, network=model, transform=transform, load_prev=False, save_img=False, image_path=IMAGE_PATH)
+    test(device, network=model, transform=transform, load_prev=True, save_img=False, image_path=IMAGE_PATH)
