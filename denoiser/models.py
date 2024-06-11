@@ -1,5 +1,5 @@
 import torch
-from torch import nn, cat, randn_like, sqrt
+from torch import nn, cat
 from torch.nn.functional import pad
 
 
@@ -7,45 +7,39 @@ class UNet(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(UNet, self).__init__()
 
-        self.down1 = EncodeDown(in_channels, 64)
-        self.down2 = EncodeDown(64, 128)
-        self.down3 = EncodeDown(128, 256)
-        self.down4 = EncodeDown(256, 512)
-        self.down5 = EncodeDown(512, 1024)
+        self.encoder = nn.ModuleList([
+            EncodeDown(in_channels, 64),
+            EncodeDown(64, 128),
+            EncodeDown(128, 256),
+            EncodeDown(256, 512),
+            EncodeDown(512, 1024)
+        ])
 
         self.double_conv = DoubleConv(1024, 2048)
 
-        self.up1 = DecodeUp(2048, 1024)
-        self.up2 = DecodeUp(1024, 512)
-        self.up3 = DecodeUp(512, 256)
-        self.up4 = DecodeUp(256, 128)
-        self.up5 = DecodeUp(128, 64)
+        self.decoder = nn.ModuleList([
+            DecodeUp(2048, 1024),
+            DecodeUp(1024, 512),
+            DecodeUp(512, 256),
+            DecodeUp(256, 128),
+            DecodeUp(128, 64)
+        ])
 
-        self.output = nn.Conv2d(64, out_channels, kernel_size=1, padding=0)
+        self.output = nn.Conv2d(64, out_channels, kernel_size=1)
 
     def forward(self, x):
-        s1, p1 = self.down1(x)
-        s2, p2 = self.down2(p1)
-        s3, p3 = self.down3(p2)
-        s4, p4 = self.down4(p3)
-        s5, p5 = self.down5(p4)
-        b = self.double_conv(p5)
-        d1 = self.up1(b, s5)
-        d2 = self.up2(d1, s4)
-        d3 = self.up3(d2, s3)
-        d4 = self.up4(d3, s2)
-        d5 = self.up5(d4, s1)
-        output = self.output(d5)
-        return output
-    
-    def diffusion(self, x, original_x, num_steps=1000, step_size=1e-8):
-        step_size = torch.tensor(step_size).to(x.device)
-        for _ in range(num_steps):
-            noise = randn_like(x) * sqrt(step_size)
-            grad = original_x - x
-            # x = x.clone() + 0.5 * grad * step_size + noise
-            x.add_(0.5 * grad * step_size + noise)
-        return x
+        skips = []
+        for layer in self.encoder:
+            x, pooled = layer(x)
+            skips.append(x)
+            x = pooled
+
+        x = self.double_conv(x)
+
+        for skip, layer in zip(reversed(skips), self.decoder):
+            x = layer(x, skip)
+
+        return self.output(x)
 
 
 class EncodeDown(nn.Module):
@@ -63,41 +57,33 @@ class EncodeDown(nn.Module):
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.relu1 = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.relu2 = nn.ReLU(inplace=True)
+        self.double_conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu1(x)
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu2(x)
-
-        return x
+        return self.double_conv(x)
 
 
 class DecodeUp(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0)
+        self.up = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
         self.conv = DoubleConv(out_channels * 2, out_channels)
 
     def forward(self, x, skip):
         x = self.up(x)
-
-        # pad between skip tensors
-        diff_h = skip.size()[2] - x.size()[2]
-        diff_w = skip.size()[3] - x.size()[3]
-        x = pad(x, (diff_w // 2, diff_w - diff_w // 2, diff_h // 2, diff_h - diff_h // 2))
-
+        diffY = skip.size()[2] - x.size()[2]
+        diffX = skip.size()[3] - x.size()[3]
+        x = pad(x, [diffX // 2, diffX - diffX // 2,
+                      diffY // 2, diffY - diffY // 2])
         x = cat([x, skip], dim=1)
-        x = self.conv(x)
-        return x
+        return self.conv(x)
 
 
 class ResNetBlock(nn.Module):
